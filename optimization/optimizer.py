@@ -1,3 +1,4 @@
+import sys
 import pyzx as zx
 from pyzx.rules import remove_ids, spider, lcomp, pivot, MatchLcompType, MatchSpiderType, MatchIdType, MatchPivotType
 from pyzx.simplify import simp, Stats, to_gh
@@ -212,3 +213,11 @@ def check_4ary_pivot(g: BaseGraph[VT,ET], e: ET) -> bool:
                 return False
     return True
 
+
+if __name__ == "__main__":
+    c = zx.Circuit.load(sys.argv[1]).to_basic_gates().split_phase_gates()
+    g = c.to_graph()
+    g = zx.simplify.teleport_reduce(g)
+    g.track_phases = False
+    cluster_clifford_simp(g, quiet=True)
+    print(g.to_json())
