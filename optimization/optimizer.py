@@ -4,6 +4,7 @@ from pyzx.rules import remove_ids, spider, lcomp, pivot, MatchLcompType, MatchSp
 from pyzx.simplify import simp, Stats, to_gh
 from pyzx.graph.base import BaseGraph, VT, ET
 from pyzx.utils import VertexType, EdgeType
+from pyzx.gflow import gflow
 from typing import Callable, Optional, List
 from fractions import Fraction
 
@@ -213,6 +214,58 @@ def check_4ary_pivot(g: BaseGraph[VT,ET], e: ET) -> bool:
                 return False
     return True
 
+def insert_identity(g, v1, v2) -> int:
+    orig_type = g.edge_type(g.edge(v1, v2))
+    if g.connected(v1, v2):
+        g.remove_edge(g.edge(v1, v2))
+    vmid = g.add_vertex(VertexType.Z,g.qubits()[v1],g.rows()[v1]+0.5)
+    g.add_edge((v1,vmid), EdgeType.HADAMARD)
+    if orig_type == EdgeType.HADAMARD:
+        g.add_edge((vmid,v2), EdgeType.SIMPLE)
+    else:
+        g.add_edge((vmid,v2), EdgeType.HADAMARD)
+    return vmid
+
+def clean_boundaries(g: BaseGraph[VT,ET]):
+    for boundary in g.inputs():
+        z_neighbor = list(g.neighbors(boundary))[0]
+        e = g.edge(boundary,z_neighbor)
+        if g.edge_type(e) == EdgeType.HADAMARD:
+            nv = g.add_vertex(VertexType.Z,g.qubits()[boundary],g.rows()[boundary]+0.5)
+            g.add_edge(g.edge(boundary, nv), EdgeType.SIMPLE)
+            g.add_edge(g.edge(nv, z_neighbor), EdgeType.HADAMARD)
+            g.remove_edge(g.edge(boundary, z_neighbor))
+    for boundary in g.outputs():
+        z_neighbor = list(g.neighbors(boundary))[0]
+        e = g.edge(boundary,z_neighbor)
+        if g.edge_type(e) == EdgeType.HADAMARD:
+            nv = g.add_vertex(VertexType.Z,g.qubits()[boundary],g.rows()[boundary]-0.5)
+            g.add_edge(g.edge(boundary, nv), EdgeType.SIMPLE)
+            g.add_edge(g.edge(nv, z_neighbor), EdgeType.HADAMARD)
+            g.remove_edge(g.edge(boundary, z_neighbor))
+    
+
+def to_2d_cluster(g: BaseGraph[VT,ET]):
+    gf = gflow(g)
+    for v in z_vertices(g):
+        vn = g.neighbors(v)
+        if len(vn) > 4: #split neighbors according to gflow ordering
+            gf_tuples = list(map(lambda n: (n, gf[0][n] if n in gf[0] else -1), vn))
+            gf_tuples.sort(key=lambda x: x[1])
+            vn1, vn2 = gf_tuples[len(gf_tuples)//2:], gf_tuples[:len(gf_tuples)//2]
+            # vn1 = list(filter(lambda n: n in gf[0] and gf[0][n] <= gf[0][v], vn))
+            # vn2 = list(filter(lambda n: not n in gf[0] or gf[0][n] > gf[0][v], vn))
+            print("split spider: ",v,"in two neighbor sets: ",vn1," and ", vn2)
+            split_spider = g.add_vertex(VertexType.Z,g.qubits()[v],g.rows()[v]+0.5,0)
+            insert_identity(g, v, split_spider)
+            for n in vn2:
+                g.remove_edge(g.edge(v, n[0]))
+                g.add_edge(g.edge(split_spider, n[0]), EdgeType.HADAMARD)
+            gf = gflow(g)
+            if not gf:
+                print("error: broken gflow")
+                import pdb
+                pdb.set_trace()
 
 if __name__ == "__main__":
     c = zx.Circuit.load(sys.argv[1]).to_basic_gates().split_phase_gates()
@@ -220,4 +273,5 @@ if __name__ == "__main__":
     g = zx.simplify.teleport_reduce(g)
     g.track_phases = False
     cluster_clifford_simp(g, quiet=True)
+    clean_boundaries(g)
     print(g.to_json())
