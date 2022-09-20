@@ -243,24 +243,46 @@ def clean_boundaries(g: BaseGraph[VT,ET]):
             g.add_edge(g.edge(boundary, nv), EdgeType.SIMPLE)
             g.add_edge(g.edge(nv, z_neighbor), EdgeType.HADAMARD)
             g.remove_edge(g.edge(boundary, z_neighbor))
-    
+
+def split_spider(g: BaseGraph[VT,ET], v, split_neighbors):
+    split_spider = g.add_vertex(VertexType.Z,g.qubits()[v],g.rows()[v]+0.5,0)
+    insert_identity(g, v, split_spider)
+    for n in split_neighbors:
+        g.remove_edge(g.edge(v, n))
+        g.add_edge(g.edge(split_spider, n), EdgeType.HADAMARD)
+    return split_spider
+
+def recursive_split(g: BaseGraph[VT,ET], v):
+    gf = gflow(g)
+    vn = g.neighbors(v)
+    if len(vn) <= 4:
+        return True
+    vn1 = list(filter(lambda n: n in gf[0] and gf[0][n] <= gf[0][v], vn))
+    vn2 = list(filter(lambda n: not n in gf[0] or gf[0][n] > gf[0][v], vn))
+    if len(vn1) < 4 and len(vn2) < 4:
+        split_spider(g,v,vn2)
+    else:
+        for nset in [vn1, vn2]:
+            if len(nset) >= 4:
+                s1 = split_spider(g, v, nset[len(nset)//2:])
+                s2 = split_spider(g, v, nset[:len(nset)//2])
+                recursive_split(g, s1)
+                recursive_split(g, s2)
+                
 
 def to_2d_cluster(g: BaseGraph[VT,ET]):
     gf = gflow(g)
     for v in z_vertices(g):
         vn = g.neighbors(v)
         if len(vn) > 4: #split neighbors according to gflow ordering
-            gf_tuples = list(map(lambda n: (n, gf[0][n] if n in gf[0] else -1), vn))
-            gf_tuples.sort(key=lambda x: x[1])
-            vn1, vn2 = gf_tuples[len(gf_tuples)//2:], gf_tuples[:len(gf_tuples)//2]
-            # vn1 = list(filter(lambda n: n in gf[0] and gf[0][n] <= gf[0][v], vn))
-            # vn2 = list(filter(lambda n: not n in gf[0] or gf[0][n] > gf[0][v], vn))
-            print("split spider: ",v,"in two neighbor sets: ",vn1," and ", vn2)
-            split_spider = g.add_vertex(VertexType.Z,g.qubits()[v],g.rows()[v]+0.5,0)
-            insert_identity(g, v, split_spider)
-            for n in vn2:
-                g.remove_edge(g.edge(v, n[0]))
-                g.add_edge(g.edge(split_spider, n[0]), EdgeType.HADAMARD)
+            recursive_split(g,v)
+            # gf_tuples = list(map(lambda n: (n, gf[0][n] if n in gf[0] else -1), vn))
+            # gf_tuples.sort(key=lambda x: x[1])
+            # vn1, vn2 = gf_tuples[len(gf_tuples)//2:], gf_tuples[:len(gf_tuples)//2]
+            # # vn1 = list(filter(lambda n: n in gf[0] and gf[0][n] <= gf[0][v], vn))
+            # # vn2 = list(filter(lambda n: not n in gf[0] or gf[0][n] > gf[0][v], vn))
+            # print("split spider: ",v,"in two neighbor sets: ",vn1," and ", vn2)
+            # split_spider(g,v,vn2)
             gf = gflow(g)
             if not gf:
                 print("error: broken gflow")
