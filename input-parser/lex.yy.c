@@ -322,9 +322,6 @@ void yyfree ( void *  );
 #define YY_AT_BOL() (YY_CURRENT_BUFFER_LVALUE->yy_at_bol)
 
 /* Begin user sect3 */
-
-#define yywrap() (/*CONSTCOND*/1)
-#define YY_SKIP_YYWRAP
 typedef flex_uint8_t YY_CHAR;
 
 FILE *yyin = NULL, *yyout = NULL;
@@ -366,9 +363,9 @@ struct yy_trans_info
 static const flex_int16_t yy_accept[34] =
     {   0,
         0,    0,   23,   21,   20,   19,   14,   15,   10,    8,
-       17,    9,   11,    2,    2,   18,   12,   13,   21,    6,
-       21,   16,   21,    0,    0,    2,    2,    7,    3,    5,
-        4,    1,    0
+       17,    9,   11,    1,    1,   18,   12,   13,   21,    6,
+       21,   16,   21,    0,    0,    1,    1,    7,    3,    5,
+        4,    2,    0
     } ;
 
 static const YY_CHAR yy_ec[256] =
@@ -465,20 +462,19 @@ int yy_flex_debug = 0;
 #define YY_RESTORE_YY_MORE_OFFSET
 char *yytext;
 #line 1 "compiler.l"
-#line 4 "compiler.l"
+#line 2 "compiler.l"
 #include <stdio.h>
-#include <string.h>
-#include <math.h>
+#include <math.h> // needed for call to atof() below
 
 #define YY_DECL int yylex()
 
 #include "compiler.tab.h"
 
-#line 478 "lex.yy.c"
+#line 474 "lex.yy.c"
 /* Token Definitions */
 /* Regular Expressions defining the Tokens for PhotonQ Compiler */
 /* pattern + action */
-#line 482 "lex.yy.c"
+#line 478 "lex.yy.c"
 
 #define INITIAL 0
 
@@ -695,10 +691,10 @@ YY_DECL
 		}
 
 	{
-#line 21 "compiler.l"
+#line 18 "compiler.l"
 
 
-#line 702 "lex.yy.c"
+#line 698 "lex.yy.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -757,116 +753,116 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 23 "compiler.l"
-{yylval = atof(yytext); return FLOAT;}
+#line 20 "compiler.l"
+{yylval.ival = atoi(yytext); return INT;}
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 24 "compiler.l"
-{yylval = atoi(yytext); return INT;}
+#line 21 "compiler.l"
+{yylval.fval = atof(yytext); return FLOAT;}
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 25 "compiler.l"
+#line 22 "compiler.l"
 { return PI; }
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 26 "compiler.l"
+#line 23 "compiler.l"
 { return RZ; }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 27 "compiler.l"
+#line 24 "compiler.l"
 { return RX; }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 28 "compiler.l"
+#line 25 "compiler.l"
 { return HAD; }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 29 "compiler.l"
+#line 26 "compiler.l"
 { return CZ; }
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 30 "compiler.l"
+#line 27 "compiler.l"
 { return ADD; }
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 31 "compiler.l"
+#line 28 "compiler.l"
 { return SUB; }
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 32 "compiler.l"
+#line 29 "compiler.l"
 { return MUL; }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 33 "compiler.l"
+#line 30 "compiler.l"
 { return DIV; }
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 34 "compiler.l"
+#line 31 "compiler.l"
 { return LEFTBRACK; }
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 35 "compiler.l"
+#line 32 "compiler.l"
 { return RIGHTBRACK; }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 36 "compiler.l"
+#line 33 "compiler.l"
 { return LEFTPARENTH; }
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 37 "compiler.l"
+#line 34 "compiler.l"
 { return RIGHTPARENTH; }
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 38 "compiler.l"
+#line 35 "compiler.l"
 { return QUBIT; }
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 39 "compiler.l"
+#line 36 "compiler.l"
 { return COMMA; }
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 40 "compiler.l"
+#line 37 "compiler.l"
 { return SEMICOLON; }
 	YY_BREAK
 case 19:
 /* rule 19 can match eol */
 YY_RULE_SETUP
-#line 41 "compiler.l"
+#line 38 "compiler.l"
 { return EOL; }
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 42 "compiler.l"
+#line 39 "compiler.l"
 { /* ignore whitespace */ }
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 43 "compiler.l"
+#line 40 "compiler.l"
 { printf("Unknown character \n"); }
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 45 "compiler.l"
+#line 42 "compiler.l"
 ECHO;
 	YY_BREAK
-#line 870 "lex.yy.c"
+#line 866 "lex.yy.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -1871,6 +1867,6 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 45 "compiler.l"
+#line 42 "compiler.l"
 
-// int yywrap(void){}
+

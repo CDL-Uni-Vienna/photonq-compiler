@@ -1,9 +1,6 @@
-%option noyywrap
-
 %{
 #include <stdio.h>
-#include <string.h>
-#include <math.h>
+#include <math.h> // needed for call to atof() below
 
 #define YY_DECL int yylex()
 
@@ -20,8 +17,8 @@ float   [0-9]+\.[0-9]+
 /* pattern + action */
 %%
 
-{float} 	{yylval = atof(yytext); return FLOAT;}
-{integer}	{yylval = atoi(yytext); return INT;}
+{integer}	{yylval.ival = atoi(yytext); return INT;}
+{float} 	{yylval.fval = atof(yytext); return FLOAT;}
 "pi"    { return PI; }
 "rz"    { return RZ; }
 "rx"    { return RX; }
@@ -43,4 +40,3 @@ float   [0-9]+\.[0-9]+
 .       { printf("Unknown character \n"); }
 
 %%
-// int yywrap(void){}

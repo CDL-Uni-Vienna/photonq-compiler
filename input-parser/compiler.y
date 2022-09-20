@@ -2,10 +2,6 @@
 
 #include <stdio.h>  // For I/O
 #include <stdlib.h> // For malloc here and symbol table
-#include <string.h> // For strcmp in symbol table
-
-#define YYDEBUG 1   // For Debugging
-int errors;         // Error Count
 
 extern int yylex();
 extern int yyparse();
@@ -14,11 +10,23 @@ extern FILE* yyin;
 void yyerror(const char* s);
 %}
 
+%union {
+    int ival;
+    float fval;
+}
 
-%token INT FLOAT PI
+%token<ival> INT
+%token<fval> FLOAT 
+%token PI
 %token RZ RX HAD CZ
 %token ADD SUB MUL DIV LEFTBRACK RIGHTBRACK LEFTPARENTH RIGHTPARENTH
 %token QUBIT COMMA SEMICOLON EOL
+
+%left ADD SUB
+%left MUL DIV
+
+%type<ival> exp qubit_
+%type<fval> expf arg
 
 %%
 
@@ -27,45 +35,98 @@ input: /* empty */
 ;
 
 line: EOL
-    | gate EOL { printf("\tResult: %f\n", $1);}
+    | gate EOL { }
 ;
 
-gate: rx_gate                 		{ $$ = $1; }
-	  | rz_gate                 	{ $$ = $1; }
-	  | h_gate                 		{ $$ = $1; }
-	  | cz_gate                     { $$ = $1; }
+gate: rx_gate { }
+	  | rz_gate { }
+	  | h_gate { }
+	  | cz_gate { }
 ;
 
-rx_gate: RX arg qubit_ SEMICOLON { printf("rz GATE"); }
+rx_gate: RX arg qubit_ SEMICOLON { 
+                printf("rz(0) q[");
+                printf("%i", $3);
+                printf("];\n");
+                printf("h q[");
+                printf("%i", $3);
+                printf("];\n");
+                printf("rz(");
+                printf("%f", $2);
+                printf(") q[");
+                printf("%i", $3);
+                printf("];\n");
+                printf("h q[");
+                printf("%i", $3);
+                printf("];\n");
+                }
 ;
 
-rz_gate: RZ arg qubit_ SEMICOLON { printf("rz GATE"); }
+rz_gate: RZ arg qubit_ SEMICOLON { 
+                printf("rz(");
+                printf("%f", $2);
+                printf(") q[");
+                printf("%i", $3);
+                printf("];\n");
+                printf("h q[");
+                printf("%i", $3);
+                printf("];\n");
+                printf("rz(0) q[");
+                printf("%i", $3);
+                printf("];\n");
+                printf("h q[");
+                printf("%i", $3);
+                printf("];\n");
+                }
 ;
 
-h_gate: HAD qubit_ SEMICOLON { printf("HADAMARD GATE"); }
+h_gate: HAD qubit_ SEMICOLON { 
+                printf("rz(0) q[");
+                printf("%i", $2);
+                printf("];\n");
+                printf("h q[");
+                printf("%i", $2);
+                printf("];\n");
+                }
 ;
 
-cz_gate: CZ qubit_ COMMA qubit_	SEMICOLON { printf("CZ GATE"); }
+cz_gate: CZ qubit_ COMMA qubit_	SEMICOLON {
+                printf("cz q[");
+                printf("%i", $2);
+                printf("], q[");
+                printf("%i", $4);
+                printf("];\n");
+                }
 ;
 
-qubit_: QUBIT LEFTBRACK INT RIGHTBRACK { printf("QUBIT"); }
+qubit_: QUBIT LEFTBRACK INT RIGHTBRACK { $$ = $3; }
 ;
 
-arg: LEFTPARENTH exp_ RIGHTPARENTH { printf("ARG"); }
+arg: LEFTPARENTH expf RIGHTPARENTH { $$ = $2; }
 ;
 
-exp_: exp { $$ = $1; }
-| exp_ MUL exp_ { $$ = $1 * $3; }
-| exp_ DIV exp_ { $$ = $1 / $3; }
-| SUB exp_ { $$ = 0 - $1 ; }
+expf: FLOAT { $$ = $1; }
+| expf ADD expf { $$ = $1 + $3; }
+| expf SUB expf { $$ = $1 - $3; }
+| expf MUL expf { $$ = $1 * $3; }
+| expf DIV expf { $$ = $1 / $3; }
+| SUB expf { $$ = 0 - $2 ; }
+| exp ADD expf { $$ = $1 + $3; }
+| exp SUB expf { $$ = $1 - $3; }
+| exp MUL expf { $$ = $1 * $3; }
+| exp DIV expf { $$ = $1 / $3; }
+| expf ADD exp { $$ = $1 + $3; }
+| expf SUB exp { $$ = $1 - $3; }
+| expf MUL exp { $$ = $1 * $3; }
+| expf DIV exp { $$ = $1 / $3; }
 ;
 
 exp: INT { $$ = $1; }
-| FLOAT { $$ = $1; }
-| PI { $$ = $1; }
 | exp ADD exp { $$ = $1 + $3; }
 | exp SUB exp { $$ = $1 - $3; }
-| SUB exp { $$ = 0 - $1 ; }
+| exp MUL exp { $$ = $1 * $3; }
+| exp DIV exp { $$ = $1 / $3; }
+| SUB exp { $$ = 0 - $2 ; }
 ;
 
 %%
