@@ -14,12 +14,11 @@ void yyerror(const char* s);
 
 %union {
     int ival;
-    float fval;
+    char* str;
 }
 
 %token<ival> INT
-%token<fval> FLOAT 
-%token PI
+%token<str> PI
 %token RZ RX HAD CZ
 %token ADD SUB MUL DIV LEFTBRACK RIGHTBRACK LEFTPARENTH RIGHTPARENTH
 %token QUBIT COMMA SEMICOLON EOL
@@ -27,8 +26,8 @@ void yyerror(const char* s);
 %left ADD SUB
 %left MUL DIV
 
-%type<ival> exp qubit_
-%type<fval> expf arg
+%type<ival> qubit_
+%type<str> pi_ arg
 
 %%
 
@@ -54,7 +53,7 @@ rx_gate: RX arg qubit_ SEMICOLON {
                 fprintf(yyout, "%i", $3);
                 fprintf(yyout, "];\n");
                 fprintf(yyout, "rz(");
-                fprintf(yyout, "%f", $2);
+                fprintf(yyout, "%s", $2);
                 fprintf(yyout, ") q[");
                 fprintf(yyout, "%i", $3);
                 fprintf(yyout, "];\n");
@@ -66,7 +65,7 @@ rx_gate: RX arg qubit_ SEMICOLON {
 
 rz_gate: RZ arg qubit_ SEMICOLON { 
                 fprintf(yyout, "rz(");
-                fprintf(yyout, "%f", $2);
+                fprintf(yyout, "%s", $2);
                 fprintf(yyout, ") q[");
                 fprintf(yyout, "%i", $3);
                 fprintf(yyout, "];\n");
@@ -104,40 +103,21 @@ cz_gate: CZ qubit_ COMMA qubit_	SEMICOLON {
 qubit_: QUBIT LEFTBRACK INT RIGHTBRACK { $$ = $3; }
 ;
 
-arg: LEFTPARENTH expf RIGHTPARENTH { $$ = $2; }
+arg: LEFTPARENTH pi_ RIGHTPARENTH { $$ = (char *)$2; }
 ;
 
-expf: FLOAT { $$ = $1; }
-| PI { $$ = M_PI; }
-| expf ADD expf { $$ = $1 + $3; }
-| expf SUB expf { $$ = $1 - $3; }
-| expf MUL expf { $$ = $1 * $3; }
-| expf DIV expf { $$ = $1 / $3; }
-| SUB expf { $$ = 0 - $2 ; }
-| exp ADD expf { $$ = $1 + $3; }
-| exp SUB expf { $$ = $1 - $3; }
-| exp MUL expf { $$ = $1 * $3; }
-| exp DIV expf { $$ = $1 / $3; }
-| expf ADD exp { $$ = $1 + $3; }
-| expf SUB exp { $$ = $1 - $3; }
-| expf MUL exp { $$ = $1 * $3; }
-| expf DIV exp { $$ = $1 / $3; }
+pi_: PI { }
 ;
 
-exp: INT { $$ = $1; }
-| exp ADD exp { $$ = $1 + $3; }
-| exp SUB exp { $$ = $1 - $3; }
-| exp MUL exp { $$ = $1 * $3; }
-| exp DIV exp { $$ = $1 / $3; }
-| SUB exp { $$ = 0 - $2 ; }
-;
+
+
 
 
 %%
 
 int main() {
-	yyin = fopen("./test.qasm", "r");
-    yyout = fopen("./output.qasm", "a");
+	yyin = fopen("./input.qasm", "r");
+    yyout = fopen("./output.qasm", "w+");
 	do {
 		yyparse();
 	} while(!feof(yyin));

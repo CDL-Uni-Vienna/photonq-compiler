@@ -11,15 +11,14 @@
 /* Token Definitions */
 
 integer [1-9]+[0-9]*|0
-float   [0-9]+\.[0-9]+
+pi      [-+]?([0-9]*\.?[0-9]+|[0-9]+\.[0-9]*|pi)([-]|[+]|[*]|[/])*(pi)*([-]|[+]|[*]|[/])*
 
 /* Regular Expressions defining the Tokens for PhotonQ Compiler */
 /* pattern + action */
 %%
 
 {integer}	{yylval.ival = atoi(yytext); return INT;}
-{float} 	{yylval.fval = atof(yytext); return FLOAT;}
-"pi"    { return PI; }
+{pi}    { yylval.str = yytext; return PI; }
 "rz"    { return RZ; }
 "rx"    { return RX; }
 "h"     { return HAD; }

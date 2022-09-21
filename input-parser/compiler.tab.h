@@ -50,24 +50,23 @@ extern int yydebug;
   enum yytokentype
   {
     INT = 258,
-    FLOAT = 259,
-    PI = 260,
-    RZ = 261,
-    RX = 262,
-    HAD = 263,
-    CZ = 264,
-    ADD = 265,
-    SUB = 266,
-    MUL = 267,
-    DIV = 268,
-    LEFTBRACK = 269,
-    RIGHTBRACK = 270,
-    LEFTPARENTH = 271,
-    RIGHTPARENTH = 272,
-    QUBIT = 273,
-    COMMA = 274,
-    SEMICOLON = 275,
-    EOL = 276
+    PI = 259,
+    RZ = 260,
+    RX = 261,
+    HAD = 262,
+    CZ = 263,
+    ADD = 264,
+    SUB = 265,
+    MUL = 266,
+    DIV = 267,
+    LEFTBRACK = 268,
+    RIGHTBRACK = 269,
+    LEFTPARENTH = 270,
+    RIGHTPARENTH = 271,
+    QUBIT = 272,
+    COMMA = 273,
+    SEMICOLON = 274,
+    EOL = 275
   };
 #endif
 
@@ -78,9 +77,9 @@ union YYSTYPE
 #line 15 "compiler.y"
 
     int ival;
-    float fval;
+    char* str;
 
-#line 84 "compiler.tab.h"
+#line 83 "compiler.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;
