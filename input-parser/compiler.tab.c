@@ -69,8 +69,8 @@
 #line 1 "compiler.y"
 
 
-#include <stdio.h>  // For I/O
-#include <stdlib.h> // For malloc here and symbol table
+#include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 
 extern int yylex();
@@ -129,23 +129,25 @@ extern int yydebug;
   enum yytokentype
   {
     INT = 258,
-    PI = 259,
-    RZ = 260,
-    RX = 261,
-    HAD = 262,
-    CZ = 263,
-    ADD = 264,
-    SUB = 265,
-    MUL = 266,
-    DIV = 267,
-    LEFTBRACK = 268,
-    RIGHTBRACK = 269,
-    LEFTPARENTH = 270,
-    RIGHTPARENTH = 271,
-    QUBIT = 272,
-    COMMA = 273,
-    SEMICOLON = 274,
-    EOL = 275
+    FLOAT = 259,
+    PI = 260,
+    RZ = 261,
+    RX = 262,
+    HAD = 263,
+    CZ = 264,
+    CX = 265,
+    ADD = 266,
+    SUB = 267,
+    MUL = 268,
+    DIV = 269,
+    LEFTBRACK = 270,
+    RIGHTBRACK = 271,
+    LEFTPARENTH = 272,
+    RIGHTPARENTH = 273,
+    QUBIT = 274,
+    COMMA = 275,
+    SEMICOLON = 276,
+    EOL = 277
   };
 #endif
 
@@ -155,10 +157,11 @@ union YYSTYPE
 {
 #line 15 "compiler.y"
 
-    int ival;
-    char* str;
+    const char* ival;
+    const char* fval;
+    const char* pi;
 
-#line 162 "compiler.tab.c"
+#line 165 "compiler.tab.c"
 
 };
 typedef union YYSTYPE YYSTYPE;
@@ -477,19 +480,19 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  2
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   26
+#define YYLAST   32
 
 /* YYNTOKENS -- Number of terminals.  */
-#define YYNTOKENS  21
+#define YYNTOKENS  23
 /* YYNNTS -- Number of nonterminals.  */
 #define YYNNTS  11
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  16
+#define YYNRULES  19
 /* YYNSTATES -- Number of states.  */
-#define YYNSTATES  35
+#define YYNSTATES  44
 
 #define YYUNDEFTOK  2
-#define YYMAXUTOK   275
+#define YYMAXUTOK   277
 
 
 /* YYTRANSLATE(TOKEN-NUM) -- Symbol number corresponding to TOKEN-NUM
@@ -528,15 +531,15 @@ static const yytype_int8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     1,     2,     3,     4,
        5,     6,     7,     8,     9,    10,    11,    12,    13,    14,
-      15,    16,    17,    18,    19,    20
+      15,    16,    17,    18,    19,    20,    21,    22
 };
 
 #if YYDEBUG
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int8 yyrline[] =
 {
-       0,    34,    34,    35,    38,    39,    42,    43,    44,    45,
-      48,    66,    84,    94,   103,   106,   109
+       0,    36,    36,    37,    40,    41,    44,    45,    46,    47,
+      48,    51,    67,    83,    93,   100,   119,   122,   123,   124
 };
 #endif
 
@@ -545,11 +548,11 @@ static const yytype_int8 yyrline[] =
    First, the terminals, then, starting at YYNTOKENS, nonterminals.  */
 static const char *const yytname[] =
 {
-  "$end", "error", "$undefined", "INT", "PI", "RZ", "RX", "HAD", "CZ",
-  "ADD", "SUB", "MUL", "DIV", "LEFTBRACK", "RIGHTBRACK", "LEFTPARENTH",
-  "RIGHTPARENTH", "QUBIT", "COMMA", "SEMICOLON", "EOL", "$accept", "input",
-  "line", "gate", "rx_gate", "rz_gate", "h_gate", "cz_gate", "qubit_",
-  "arg", "pi_", YY_NULLPTR
+  "$end", "error", "$undefined", "INT", "FLOAT", "PI", "RZ", "RX", "HAD",
+  "CZ", "CX", "ADD", "SUB", "MUL", "DIV", "LEFTBRACK", "RIGHTBRACK",
+  "LEFTPARENTH", "RIGHTPARENTH", "QUBIT", "COMMA", "SEMICOLON", "EOL",
+  "$accept", "input", "line", "gate", "rx_gate", "rz_gate", "h_gate",
+  "cz_gate", "cx_gate", "qubit_", "arg", YY_NULLPTR
 };
 #endif
 
@@ -560,11 +563,11 @@ static const yytype_int16 yytoknum[] =
 {
        0,   256,   257,   258,   259,   260,   261,   262,   263,   264,
      265,   266,   267,   268,   269,   270,   271,   272,   273,   274,
-     275
+     275,   276,   277
 };
 # endif
 
-#define YYPACT_NINF (-18)
+#define YYPACT_NINF (-15)
 
 #define yypact_value_is_default(Yyn) \
   ((Yyn) == YYPACT_NINF)
@@ -578,10 +581,11 @@ static const yytype_int16 yytoknum[] =
      STATE-NUM.  */
 static const yytype_int8 yypact[] =
 {
-     -18,     6,   -18,   -14,   -14,   -15,   -15,   -18,   -18,   -17,
-     -18,   -18,   -18,   -18,     0,   -15,   -15,    -8,   -12,   -10,
-     -18,   -18,    -1,    -3,    -2,    15,   -18,   -15,   -18,   -18,
-     -18,     5,     1,   -18,   -18
+     -15,     7,   -15,   -12,   -12,   -13,   -13,   -13,   -15,   -15,
+     -14,   -15,   -15,   -15,   -15,   -15,    -1,   -13,   -13,    -5,
+      -3,   -11,     0,   -15,     1,     3,     4,     2,     6,    21,
+     -15,   -13,   -13,   -15,   -15,   -15,   -15,   -15,    12,     9,
+      10,   -15,   -15,   -15
 };
 
   /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
@@ -589,24 +593,25 @@ static const yytype_int8 yypact[] =
      means the default is an error.  */
 static const yytype_int8 yydefact[] =
 {
-       2,     0,     1,     0,     0,     0,     0,     4,     3,     0,
-       6,     7,     8,     9,     0,     0,     0,     0,     0,     0,
-       5,    16,     0,     0,     0,     0,    12,     0,    15,    11,
-      10,     0,     0,    14,    13
+       2,     0,     1,     0,     0,     0,     0,     0,     4,     3,
+       0,     6,     7,     8,     9,    10,     0,     0,     0,     0,
+       0,     0,     0,     5,     0,     0,     0,     0,     0,     0,
+      13,     0,     0,    17,    18,    19,    12,    11,     0,     0,
+       0,    16,    14,    15
 };
 
   /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
-     -18,   -18,   -18,   -18,   -18,   -18,   -18,   -18,    -6,    18,
-     -18
+     -15,   -15,   -15,   -15,   -15,   -15,   -15,   -15,   -15,    -6,
+      28
 };
 
   /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int8 yydefgoto[] =
 {
-      -1,     1,     8,     9,    10,    11,    12,    13,    18,    15,
-      22
+      -1,     1,     9,    10,    11,    12,    13,    14,    15,    20,
+      17
 };
 
   /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
@@ -614,40 +619,43 @@ static const yytype_int8 yydefgoto[] =
      number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_int8 yytable[] =
 {
-      19,    14,    17,    20,    21,    25,     2,    26,    27,    23,
-      24,     3,     4,     5,     6,    28,    29,    30,    31,    33,
-      34,    32,    16,     0,     0,     0,     7
+      21,    22,    24,    25,    26,    16,    19,     2,    23,    31,
+      29,    27,    28,     3,     4,     5,     6,     7,    30,    33,
+      32,    34,    35,    36,    38,    39,    40,    37,    41,     8,
+      42,    43,    18
 };
 
 static const yytype_int8 yycheck[] =
 {
-       6,    15,    17,    20,     4,    13,     0,    19,    18,    15,
-      16,     5,     6,     7,     8,    16,    19,    19,     3,    14,
-      19,    27,     4,    -1,    -1,    -1,    20
+       6,     7,     3,     4,     5,    17,    19,     0,    22,    20,
+      15,    17,    18,     6,     7,     8,     9,    10,    21,    18,
+      20,    18,    18,    21,     3,    31,    32,    21,    16,    22,
+      21,    21,     4
 };
 
   /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
      symbol of state STATE-NUM.  */
 static const yytype_int8 yystos[] =
 {
-       0,    22,     0,     5,     6,     7,     8,    20,    23,    24,
-      25,    26,    27,    28,    15,    30,    30,    17,    29,    29,
-      20,     4,    31,    29,    29,    13,    19,    18,    16,    19,
-      19,     3,    29,    14,    19
+       0,    24,     0,     6,     7,     8,     9,    10,    22,    25,
+      26,    27,    28,    29,    30,    31,    17,    33,    33,    19,
+      32,    32,    32,    22,     3,     4,     5,    32,    32,    15,
+      21,    20,    20,    18,    18,    18,    21,    21,     3,    32,
+      32,    16,    21,    21
 };
 
   /* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
 static const yytype_int8 yyr1[] =
 {
-       0,    21,    22,    22,    23,    23,    24,    24,    24,    24,
-      25,    26,    27,    28,    29,    30,    31
+       0,    23,    24,    24,    25,    25,    26,    26,    26,    26,
+      26,    27,    28,    29,    30,    31,    32,    33,    33,    33
 };
 
   /* YYR2[YYN] -- Number of symbols on the right hand side of rule YYN.  */
 static const yytype_int8 yyr2[] =
 {
        0,     2,     0,     2,     1,     2,     1,     1,     1,     1,
-       4,     4,     3,     5,     4,     3,     1
+       1,     4,     4,     3,     5,     5,     4,     3,     3,     3
 };
 
 
@@ -1343,122 +1351,150 @@ yyreduce:
   switch (yyn)
     {
   case 5:
-#line 39 "compiler.y"
+#line 41 "compiler.y"
                { }
-#line 1349 "compiler.tab.c"
+#line 1357 "compiler.tab.c"
     break;
 
   case 6:
-#line 42 "compiler.y"
+#line 44 "compiler.y"
               { }
-#line 1355 "compiler.tab.c"
+#line 1363 "compiler.tab.c"
     break;
 
   case 7:
-#line 43 "compiler.y"
+#line 45 "compiler.y"
                     { }
-#line 1361 "compiler.tab.c"
+#line 1369 "compiler.tab.c"
     break;
 
   case 8:
-#line 44 "compiler.y"
+#line 46 "compiler.y"
                    { }
-#line 1367 "compiler.tab.c"
+#line 1375 "compiler.tab.c"
     break;
 
   case 9:
-#line 45 "compiler.y"
+#line 47 "compiler.y"
                     { }
-#line 1373 "compiler.tab.c"
+#line 1381 "compiler.tab.c"
     break;
 
   case 10:
 #line 48 "compiler.y"
-                                 { 
-                fprintf(yyout, "rz(0) q[");
-                fprintf(yyout, "%i", (yyvsp[-1].ival));
-                fprintf(yyout, "];\n");
-                fprintf(yyout, "h q[");
-                fprintf(yyout, "%i", (yyvsp[-1].ival));
-                fprintf(yyout, "];\n");
-                fprintf(yyout, "rz(");
-                fprintf(yyout, "%s", (yyvsp[-2].str));
-                fprintf(yyout, ") q[");
-                fprintf(yyout, "%i", (yyvsp[-1].ival));
-                fprintf(yyout, "];\n");
-                fprintf(yyout, "h q[");
-                fprintf(yyout, "%i", (yyvsp[-1].ival));
-                fprintf(yyout, "];\n");
-                }
-#line 1394 "compiler.tab.c"
+                { }
+#line 1387 "compiler.tab.c"
     break;
 
   case 11:
-#line 66 "compiler.y"
+#line 51 "compiler.y"
                                  { 
-                fprintf(yyout, "rz(");
-                fprintf(yyout, "%s", (yyvsp[-2].str));
-                fprintf(yyout, ") q[");
-                fprintf(yyout, "%i", (yyvsp[-1].ival));
-                fprintf(yyout, "];\n");
-                fprintf(yyout, "h q[");
-                fprintf(yyout, "%i", (yyvsp[-1].ival));
-                fprintf(yyout, "];\n");
                 fprintf(yyout, "rz(0) q[");
-                fprintf(yyout, "%i", (yyvsp[-1].ival));
-                fprintf(yyout, "];\n");
+                fprintf(yyout, "%s", (yyvsp[-1].ival));
+                fprintf(yyout, "\n");
                 fprintf(yyout, "h q[");
-                fprintf(yyout, "%i", (yyvsp[-1].ival));
-                fprintf(yyout, "];\n");
+                fprintf(yyout, "%s", (yyvsp[-1].ival));
+                fprintf(yyout, "\n");
+                fprintf(yyout, "rz(");
+                fprintf(yyout, "%s", (yyvsp[-2].fval));
+                fprintf(yyout, "\n");
+                fprintf(yyout, "h q[");
+                fprintf(yyout, "%s", (yyvsp[-1].ival));
+                fprintf(yyout, "\n");
                 }
-#line 1415 "compiler.tab.c"
+#line 1406 "compiler.tab.c"
     break;
 
   case 12:
-#line 84 "compiler.y"
-                             { 
-                fprintf(yyout, "rz(0) q[");
-                fprintf(yyout, "%i", (yyvsp[-1].ival));
-                fprintf(yyout, "];\n");
+#line 67 "compiler.y"
+                                 { 
+                fprintf(yyout, "rz(");
+                fprintf(yyout, "%s", (yyvsp[-2].fval));
+                fprintf(yyout, "\n");
                 fprintf(yyout, "h q[");
-                fprintf(yyout, "%i", (yyvsp[-1].ival));
-                fprintf(yyout, "];\n");
+                fprintf(yyout, "%s", (yyvsp[-1].ival));
+                fprintf(yyout, "\n");
+                fprintf(yyout, "rz(0) q[");
+                fprintf(yyout, "%s", (yyvsp[-1].ival));
+                fprintf(yyout, "\n");
+                fprintf(yyout, "h q[");
+                fprintf(yyout, "%s", (yyvsp[-1].ival));
+                fprintf(yyout, "\n");
                 }
-#line 1428 "compiler.tab.c"
+#line 1425 "compiler.tab.c"
     break;
 
   case 13:
-#line 94 "compiler.y"
-                                          {
-                fprintf(yyout, "cz q[");
-                fprintf(yyout, "%i", (yyvsp[-3].ival));
-                fprintf(yyout, "], q[");
-                fprintf(yyout, "%i", (yyvsp[-1].ival));
-                fprintf(yyout, "];\n");
+#line 83 "compiler.y"
+                             { 
+                fprintf(yyout, "rz(0) q[");
+                fprintf(yyout, "%s", (yyvsp[-1].ival));
+                fprintf(yyout, "\n");
+                fprintf(yyout, "h q[");
+                fprintf(yyout, "%s", (yyvsp[-1].ival));
+                fprintf(yyout, "\n");
                 }
-#line 1440 "compiler.tab.c"
+#line 1438 "compiler.tab.c"
     break;
 
   case 14:
-#line 103 "compiler.y"
-                                       { (yyval.ival) = (yyvsp[-1].ival); }
-#line 1446 "compiler.tab.c"
+#line 93 "compiler.y"
+                                          {
+                fprintf(yyout, "cz q[");
+                fprintf(yyout, "%s", (yyvsp[-3].ival));
+                fprintf(yyout, "\n");
+                }
+#line 1448 "compiler.tab.c"
     break;
 
   case 15:
-#line 106 "compiler.y"
-                                  { (yyval.str) = (char *)(yyvsp[-1].str); }
-#line 1452 "compiler.tab.c"
+#line 100 "compiler.y"
+                                          {
+                fprintf(yyout, "rz(0) q[");
+                fprintf(yyout, "%s", (yyvsp[-1].ival));
+                fprintf(yyout, "\n");
+                fprintf(yyout, "h q[");
+                fprintf(yyout, "%s", (yyvsp[-1].ival));
+                fprintf(yyout, "\n");
+                fprintf(yyout, "cz q[");
+                fprintf(yyout, "%s", (yyvsp[-3].ival));
+                fprintf(yyout, "\n");
+                fprintf(yyout, "rz(0) q[");
+                fprintf(yyout, "%s", (yyvsp[-1].ival));
+                fprintf(yyout, "\n");
+                fprintf(yyout, "h q[");
+                fprintf(yyout, "%s", (yyvsp[-1].ival));
+                fprintf(yyout, "\n");
+                }
+#line 1470 "compiler.tab.c"
     break;
 
   case 16:
-#line 109 "compiler.y"
-        { }
-#line 1458 "compiler.tab.c"
+#line 119 "compiler.y"
+                                       { (yyval.ival) = (yyvsp[-1].ival); }
+#line 1476 "compiler.tab.c"
+    break;
+
+  case 17:
+#line 122 "compiler.y"
+                                  { (yyval.fval) = (yyvsp[-1].ival); }
+#line 1482 "compiler.tab.c"
+    break;
+
+  case 18:
+#line 123 "compiler.y"
+                                 { (yyval.fval) = (yyvsp[-1].fval); }
+#line 1488 "compiler.tab.c"
+    break;
+
+  case 19:
+#line 124 "compiler.y"
+                              { (yyval.fval) = (yyvsp[-1].pi); }
+#line 1494 "compiler.tab.c"
     break;
 
 
-#line 1462 "compiler.tab.c"
+#line 1498 "compiler.tab.c"
 
       default: break;
     }
@@ -1690,7 +1726,7 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 116 "compiler.y"
+#line 131 "compiler.y"
 
 
 int main() {

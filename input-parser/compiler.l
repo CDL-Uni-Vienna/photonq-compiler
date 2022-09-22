@@ -1,6 +1,6 @@
 %{
 #include <stdio.h>
-#include <math.h> // needed for call to atof() below
+#include <math.h>
 
 #define YY_DECL int yylex()
 
@@ -11,22 +11,21 @@
 /* Token Definitions */
 
 integer [1-9]+[0-9]*|0
-pi      [-+]?([0-9]*\.?[0-9]+|[0-9]+\.[0-9]*|pi)([-]|[+]|[*]|[/])*(pi)*([-]|[+]|[*]|[/])*
+float   [0-9]+\.[0-9]+
+pi      [-+]?pi|[-+]?[0-9].[0-9]+[*]pi
 
 /* Regular Expressions defining the Tokens for PhotonQ Compiler */
 /* pattern + action */
 %%
 
-{integer}	{yylval.ival = atoi(yytext); return INT;}
-{pi}    { yylval.str = yytext; return PI; }
+{integer}	{yylval.ival = yytext; return INT;}
+{float} 	{yylval.fval = yytext; return FLOAT;}
+{pi}    { yylval.pi = yytext; return PI; }
 "rz"    { return RZ; }
 "rx"    { return RX; }
 "h"     { return HAD; }
 "cz"    { return CZ; }
-"+"     { return ADD; }
-"-"     { return SUB; }
-"*"     { return MUL; }
-"/"     { return DIV; }
+"cx"    { return CX; }
 "["     { return LEFTBRACK; }
 "]"     { return RIGHTBRACK; }
 "("     { return LEFTPARENTH; }
