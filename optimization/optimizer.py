@@ -83,6 +83,7 @@ def match_spider_4ary_fusion(g: BaseGraph[VT,ET]) -> List[MatchSpiderType[VT]]:
                 for v in g.neighbors(v1):
                     for c in g.incident_edges(v): candidates.discard(c)
                 m.append((v0,v1))
+    # print("matches for spider simp ",m)
     return m
 
 def id_simp_4ary(g: BaseGraph[VT,ET], matchf:Optional[Callable[[VT],bool]]=None, quiet:bool=False, stats:Optional[Stats]=None) -> int:
@@ -113,6 +114,7 @@ def match_ids_4ary_fusion(g: BaseGraph[VT,ET]) -> List[MatchIdType[VT]]:
             m.append((v,v0,v1,EdgeType.HADAMARD))
         else: m.append((v,v0,v1,EdgeType.SIMPLE))
         i += 1
+    # print("matches for id simp ",m)
     return m
 
 def match_spider_4ary_fusion_ext(g: BaseGraph[VT,ET]):
@@ -122,6 +124,7 @@ def match_spider_4ary_fusion_ext(g: BaseGraph[VT,ET]):
         v0, v1 = g.edge_st(candidate)
         if g.types()[v0] == VertexType.Z and g.types()[v1] == VertexType.Z:
             res.append(candidate)
+    # print("matches for spider simp ext ",res)
     return res
 
 def insert_spider(g: BaseGraph[VT,ET], matches: List[ET]):
