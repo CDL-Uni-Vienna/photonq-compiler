@@ -76,7 +76,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 15 "compiler.y"
+#line 16 "compiler.y"
 
     const char* ival;
     const char* fval;

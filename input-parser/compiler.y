@@ -1,5 +1,4 @@
 %{
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -12,11 +11,15 @@ extern FILE* yyout;
 void yyerror(const char* s);
 %}
 
+/* Declaration of data types that semantic values may have */
+
 %union {
     const char* ival;
     const char* fval;
     const char* pi;
 }
+
+/* Token declaration with no precedence or associativity */
 
 %token<ival> INT
 %token<fval> FLOAT 
@@ -25,13 +28,26 @@ void yyerror(const char* s);
 %token ADD SUB MUL DIV LEFTBRACK RIGHTBRACK LEFTPARENTH RIGHTPARENTH
 %token QUBIT COMMA SEMICOLON EOL
 
+/* Declare token type that is left associative */
+
 %left ADD SUB
 %left MUL DIV
+
+/* Type declaration of semantic value for non-terminal symbols with 
+value types specified in %union section above */
 
 %type<ival> qubit_
 %type<fval> arg
 
+
 %%
+/* This section defines the PhotonQ compiler grammar rules
+
+<non-terminal symbol>: <various terminal and non-terminal 
+symbols put together> with optional {C code actions}
+
+Distinct rules are be joined with the vertical-bar | */
+
 
 input: /* empty */
 	   | input line
@@ -125,16 +141,13 @@ arg: LEFTPARENTH INT RIGHTPARENTH { $$ = $2; }
 ;
 
 
-
-
-
 %%
 
 int main() {
 	yyin = fopen("./input.qasm", "r");
     yyout = fopen("./output.qasm", "w+");
 	do {
-		yyparse();
+		yyparse(); /* Yacc/Bison parser */
 	} while(!feof(yyin));
     fclose(yyout);
 	return 0;

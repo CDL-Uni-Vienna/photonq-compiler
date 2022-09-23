@@ -1,25 +1,26 @@
 %{
 #include <stdio.h>
-#include <math.h>
 
 #define YY_DECL int yylex()
 
+/* compiler.tab.h includes definitions of tokens and yylval */
 #include "compiler.tab.h"
-
 %}
 
 /* Token Definitions */
 
-integer [1-9]+[0-9]*|0
-float   [0-9]+\.[0-9]+
-pi      [-+]?pi|[-+]?[0-9].[0-9]+[*]pi
+int     [-+]?[1-9]+[0-9]*|0
+float   [-+]?[0-9]+\.[0-9]+
+pi      [-+]?((({int}|{float})[*\/])*pi([*]({int}|{float})|[\/]([1-9]+[0-9]*|[0-9]+\.[0-9]*[1-9]+[0-9]*))*)
 
-/* Regular Expressions defining the Tokens for PhotonQ Compiler */
-/* pattern + action */
+
+/* Regular Expressions (pattern description) defining the Tokens for PhotonQ Compiler */
+/* The semantic value of tokens is stored in the corresponding union member of yylval */
+
 %%
 
-{integer}	{yylval.ival = yytext; return INT;}
-{float} 	{yylval.fval = yytext; return FLOAT;}
+{int}	{ yylval.ival = yytext; return INT;}
+{float} { yylval.fval = yytext; return FLOAT;}
 {pi}    { yylval.pi = yytext; return PI; }
 "rz"    { return RZ; }
 "rx"    { return RX; }
