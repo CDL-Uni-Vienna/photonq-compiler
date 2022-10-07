@@ -1,7 +1,9 @@
 import os, sys
 import pyzx as zx
+import perceval.lib.phys as phys
 from qiskit import QuantumCircuit, transpile
 from extraction.perceval import PercevalExtraction
+from perceval.converters import QiskitConverter
 from optimization.optimizer import cluster_clifford_simp, clean_boundaries, spider_simp_4ary
 
 small_circuits = ['wstate_n3','adder_n4','cat_state_n4','deutsch_n2','fredkin_n3','grover_n2','hs4_n4','inverseqft_n4','iswap_n2','linearsolver_n3','qft_n4','teleportation_n3','toffoli_n3','shor_n5','bell_n4']
@@ -49,13 +51,36 @@ def evaluate_folder(source_folder,target_folder):
         # print(p.qubit_fusions)
         # print("Fusion: " + str(len(p.qubit_fusions)))
         # print(p.qubit_fusions)
-        exp, clusters = p.create_setup(True)
-        print(f.replace("_",'-')," & ",len(p.ghz_clusters_dict)," & ",len(p.lin_clusters_dict)," & ",exp.m," & ",exp.ncomponents()," \\\\")
+        exp, clusters = p.create_setup(True, False)
         # print("Photons: " + str(exp.m))
-        # print("Optical Components: " + str(exp.ncomponents()))        
+        # print("Optical Components: " + str(exp.ncomponents()))
         # with open(target_folder+f+"out.json", "w") as outfile:
         #     outfile.write(g.to_json())
         # print("after ", g)
 
+        ## Perceval Extraction ####
+        qct = transpile(qc, basis_gates=['cx', 'rx', 'rz', 'h'])
+        qct.remove_final_measurements()
+        qiskit_converter = QiskitConverter(phys)
+        try:
+            qp = qiskit_converter.convert(qct, heralded=False)
+            qp_comps, qp_phot = qp.circuit.ncomponents(), qp.circuit.m
+        except:
+            qp_comps, qp_phot = "--", "--"
+        try:
+            herald = qiskit_converter.convert(qct, heralded=False)
+            her_comps, her_phot = herald.circuit.ncomponents(), herald.circuit.m
+        except:
+            her_comps, her_phot = "--", "--"
+
+
+        ## Result as Latex Table
+
+        print(f.replace("_",'-')," & ",len(p.ghz_clusters_dict)," & ",len(p.lin_clusters_dict)," & ",exp.m," & ",
+              exp.ncomponents(), " & ", qp_phot, " & ", qp_comps," & ", her_phot, " & ", her_comps , "\\\\")
+
+
+
 if __name__ == "__main__":
-    evaluate_folder(sys.argv[1],sys.argv[2])
+#    evaluate_folder(sys.argv[1], sys.argv[2])
+    evaluate_folder('D:\Tobias\Dokumente\workspaces\photonq-compiler\QASMBench\medium',sys.argv[2])

@@ -3,3 +3,4 @@ pyzx~=0.7.0
 sympy~=1.10.1
 qiskit~=0.38.0
 perceval-quandela~=0.6.2
+pylatexenc

@@ -109,8 +109,6 @@ class PercevalExtraction:
                         i = i + 1
                     w_graph.remove_edge(w_graph.edge(v, n))
 
-        print("Now the linear clusters")
-
         # Find Lin-Clusters in the remaining Graph und remove their edges from the Graph.
         for v in list(w_graph.vertices()):
             if len(w_graph.neighbors(v)) == 1:
@@ -126,7 +124,9 @@ class PercevalExtraction:
 
         # There should be no edges left in the Graph....
         if (w_graph.num_edges() == 0):
-            print("Everything worked out fine, no edges = " + str(w_graph.num_edges()))
+            print("Everything worked out fine, no. edges = " + str(w_graph.num_edges()))
+        else:
+            print("Some edges are left..., no. edges = " + str(w_graph.num_edges()))
 
         # find edges that are connected with two clusters. They have to be "fused"
         # with the extraction method above, we only have to find GHZ->GHZ and GHZ->Lin, because we cannot have two
@@ -219,8 +219,8 @@ class PercevalExtraction:
             for j in range(len(v)):
                 # "i" is the actual photon number. we need that for the fusion later
                 tmp[v[j]] = i
-                self.ghz_clusters_dict[k][j] = tmp
                 i = i + 1
+            self.ghz_clusters_dict[k]= tmp
             clusters[k] = tmp
 
         #Create circuits for all the Lin-Clusters
@@ -231,8 +231,8 @@ class PercevalExtraction:
             for j in range(len(v)):
                 # "i" is the actual photon number. we need that for the fusion later
                 tmp[v[j]] = i
-                self.lin_clusters_dict[k][j] = tmp
                 i = i + 1
+            self.lin_clusters_dict[k] = tmp
             clusters[k] = tmp
 
         #create fusion circuits.
@@ -241,8 +241,6 @@ class PercevalExtraction:
             for i in range(len(v) - 1):
                 if i == 0:
                     fusion_circuits[k]["orig"] = clusters[v[i]][k]
-                else:
-                    fusion_circuits[k]["whitness"].append(clusters[v[i]][k])
                 fusion_circuits[k]["whitness"].append(clusters[v[i + 1]][k])
                 ph1 = clusters[v[i]][k]
                 ph2 = clusters[v[i + 1]][k]
@@ -251,23 +249,88 @@ class PercevalExtraction:
                 i = i + 1
                 exp.add(min(ph1, ph2), fuse, merge)
 
-        #if reorder_before_measurement:
-        #    (ghz_circuits,lin_circuits,fusion_circuits,exp) = self.reorder_before_measurement(ghz_circuits,lin_circuits,fusion_circuits,exp)
-
         self.ghz_circuits = ghz_circuits
         self.lin_circuits = lin_circuits
         self.fusion_circuits = fusion_circuits
+
+        if reorder_before_measurement:
+            perm = self.reorder_before_measurement()
+            exp.add(perm, 0)
+
+
         self.experiment = exp
 
         return exp, clusters
 
-    def reorder_before_measurement(self,ghz_circuits,lin_circuits,fusion_circuits,exp):
-        for readout in self.graph.outputs():
-            ph = ghz_circuits[readout]
-            #if ph is None:
+    def reorder_before_measurement(self):
+        perm = list(range(0, self.total_photons))
+
+        i = self.total_photons-1
+        # put all fusions whitnesses to the bottom of the circuit
+        for ver in self.fusion_circuits.keys():
+            for w in self.get_whitnesses(ver):
+                perm[w] = i
+                self.update_whitnesses(ver, w, i)
+                self.update_photon(w,i)
+                perm[i] = w
+                self.update_photon(i, w)
+                i = i - 1
+
+        # put all outputs aka readouts at the top of the circuit
+        i = 0
+        for outs in map (lambda o: list(self.graph.neighbors(o))[0], list(self.graph.outputs())):
+            if outs in self.fusion_circuits.keys():
+                orig = self.update_origin(outs, i)
+                perm[i] = orig
+                self.update_photon(orig, i)
+                perm[orig] = i
+                self.update_photon(i, orig)
+            else:
+                ph = self.get_photon_for_node(outs)
+                perm[i] = ph
+                self.update_photon(ph, i)
+                perm[ph] = i
+                self.update_photon(i, ph)
+            i = i + 1
+        print(perm)
+        return symb.PERM(perm)
+
+    def get_whitnesses(self, node_id):
+        return self.fusion_circuits[node_id]["whitness"]
 
 
-        return ghz_circuits,lin_circuits,fusion_circuits,exp
+    def update_whitnesses(self, node_id, old, new):
+        for i in range(len(self.fusion_circuits[node_id]["whitness"])):
+            if self.fusion_circuits[node_id]["whitness"][i] == old:
+                self.fusion_circuits[node_id]["whitness"][i] = new
+                return
+
+    def update_origin(self, node_id, new):
+        old = self.fusion_circuits[node_id]["orig"]
+        self.fusion_circuits[node_id]["orig"] = new
+        return old
+
+    def update_photon(self, old, new):
+        for k,v in self.ghz_clusters_dict.items():
+            for k2,v2 in v.items():
+                if v2 == old:
+                    v[k2] = new
+                    return
+
+        for k,v in self.lin_clusters_dict.items():
+            for k2,v2 in v.items():
+                if v2 == old:
+                    v[k2] = new
+
+    def get_photon_for_node(self, node_id):
+        if node_id in self.fusion_circuits.keys():
+            return self.fusion_circuits[node_id]["orig"]
+        for k,v in self.ghz_clusters_dict.keys():
+            if node_id in v.keys():
+                return v[node_id]
+        for k, v in self.lin_clusters_dict.keys():
+            if node_id in v.keys():
+                return v[node_id]
 
     def run(self):
         if self.experiment is None:
