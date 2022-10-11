@@ -68,7 +68,7 @@ def evaluate_folder(source_folder,target_folder):
         except:
             qp_comps, qp_phot = "--", "--"
         try:
-            herald = qiskit_converter.convert(qct, heralded=False)
+            herald = qiskit_converter.convert(qct, heralded=True)
             her_comps, her_phot = herald.circuit.ncomponents(), herald.circuit.m
         except:
             her_comps, her_phot = "--", "--"
@@ -82,5 +82,5 @@ def evaluate_folder(source_folder,target_folder):
 
 
 if __name__ == "__main__":
-#    evaluate_folder(sys.argv[1], sys.argv[2])
-    evaluate_folder('D:\Tobias\Dokumente\workspaces\photonq-compiler\QASMBench\medium',sys.argv[2])
+    #evaluate_folder(sys.argv[1], sys.argv[2])
+    evaluate_folder('D:/Tobias/Dokumente/workspaces/photonq-compiler/QASMBench/medium/', '')

@@ -73,6 +73,8 @@ class PercevalExtraction:
     lin_circuits = {}
     fusion_circuits = {}
     experiment = None
+    ghz_graphs = {}
+    lin_graphs = {}
 
     def __init__(self, graph_json):
         g = zx.Graph.from_json(graph_json)
@@ -91,6 +93,8 @@ class PercevalExtraction:
         lin_clusters = {}
         ghz_clusters = {}
         fusions = {}
+        lin_graphs = {}
+        ghz_graphs = {}
 
         # prepare a list sorted by number of neighbors to get the largest GHZ-Clusters first
         for v in w_graph.vertices():
@@ -108,25 +112,33 @@ class PercevalExtraction:
                         ghz_clusters[v].append(n)
                         i = i + 1
                     w_graph.remove_edge(w_graph.edge(v, n))
-
+                self.ghz_graphs[v] = self.extract_subgraph(ghz_clusters[v], head=v)
         # Find Lin-Clusters in the remaining Graph und remove their edges from the Graph.
-        for v in list(w_graph.vertices()):
-            if len(w_graph.neighbors(v)) == 1:
-                n = v
-                lin_clusters[v] = [n]
-                i = 0
-                while len(w_graph.neighbors(n)) > 0 and i < max_lin:
-                    n2 = list(w_graph.neighbors(n))[0]
-                    lin_clusters[v].append(n2)
-                    w_graph.remove_edge(w_graph.edge(n, n2))
-                    n = n2
-                    i=i+1
+        while w_graph.num_edges() != 0:
+            for v in list(w_graph.vertices()):
+                if len(w_graph.neighbors(v)) == 1:
+                    n = v
+                    lin_clusters[v] = [n]
+                    i = 0
+                    while len(w_graph.neighbors(n)) > 0 and i < max_lin:
+                        n2 = list(w_graph.neighbors(n))[0]
+                        lin_clusters[v].append(n2)
+                        w_graph.remove_edge(w_graph.edge(n, n2))
+                        n = n2
+                        i = i + 1
+                    self.lin_graphs[v] = self.extract_subgraph(lin_clusters[v])
+            # There might be some circles left. if so, extract one single 3-qubit ghz state before continue with linear
+            # clusters.
+            for v in list(w_graph.vertices()):
+                if len(w_graph.neighbors(v)) == 2:
+                    neighbors = list(w_graph.neighbors(v))
+                    ghz_clusters[v] = [v] + neighbors
+                    w_graph.remove_edge(w_graph.edge(v, neighbors[0]))
+                    w_graph.remove_edge(w_graph.edge(v, neighbors[1]))
+                    i = i + 1
 
-        # There should be no edges left in the Graph....
-        if (w_graph.num_edges() == 0):
-            print("Everything worked out fine, no. edges = " + str(w_graph.num_edges()))
-        else:
-            print("Some edges are left..., no. edges = " + str(w_graph.num_edges()))
+                    self.ghz_graphs[v] = self.extract_subgraph(ghz_clusters[v], head=v)
+                    break;
 
         # find edges that are connected with two clusters. They have to be "fused"
         # with the extraction method above, we only have to find GHZ->GHZ and GHZ->Lin, because we cannot have two
@@ -294,6 +306,18 @@ class PercevalExtraction:
             i = i + 1
         print(perm)
         return symb.PERM(perm)
+
+    def extract_subgraph(self, cluster_list, head=-1):
+        # if it has a head, it's a ghz state
+        if head != -1:
+            edges = [(head, i) for i in cluster_list if i != head] + [(i, head) for i in cluster_list if i != head]
+        else:
+            edges = [(cluster_list[i],cluster_list[i+1]) for i in range(len(cluster_list)) if i+1 < len(cluster_list)] + \
+                    [(cluster_list[i+1],cluster_list[i]) for i in range(len(cluster_list)) if i+1 < len(cluster_list)]
+        tmp_graph = self.graph.copy()
+        tmp_graph.remove_edges([i for i in list(tmp_graph.edges()) if i not in edges])
+        tmp_graph.remove_vertices([i for i in list(tmp_graph.vertices()) if i not in cluster_list])
+        return tmp_graph
 
     def get_whitnesses(self, node_id):
         return self.fusion_circuits[node_id]["whitness"]

@@ -9,11 +9,13 @@ if __name__ == '__main__':
     # circuit='./circuits/grover-orig.qasm'
     circuit = './circuits/grover.qasm'
     circuit = './circuits/vbe_adder_3.qasm'
-    circuit='QASMBench/small/toffoli_n3/toffoli_n3.qasm'
+    circuit='QASMBench/small/bell_n4/bell_n4.qasm'
     ft = qft.QFT(4)
     ft = transpile(ft, basis_gates=['cx', 'cz', 'rx', 'rz', 'h'])
 
-    c = zx.Circuit.load(circuit)
+    qc = QuantumCircuit.from_qasm_file(circuit)
+    qc = transpile(qc, basis_gates=['cx', 'cz', 'rx', 'rz', 'h'])
+    c = zx.Circuit.from_qasm(qc.qasm())
     #c = zx.Circuit.from_qasm(ft.qasm())
     g = c.to_graph()
     #zx.draw(g)
@@ -29,7 +31,7 @@ if __name__ == '__main__':
 
     p = PercevalExtraction(g1.to_json())
     p.extract_clusters_from_graph_ghz_first()
-    exp, clusters = p.create_setup(True, True)
+    exp, clusters = p.create_setup(True, False)
     print("GHZ-Clusters: " + str(len(p.ghz_clusters_dict)))
     print(p.ghz_clusters_dict)
     print("Lin Clusters: " + str(len(p.lin_clusters_dict)))
