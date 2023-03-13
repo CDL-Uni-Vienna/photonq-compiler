@@ -1,54 +1,10 @@
+import itertools
+
 import numpy as np
 import pyzx as zx
+from Experiment import Experiment,PhotonType,CircuitType
+import perceval.components as symb
 import perceval as pcvl
-import perceval.lib
-import perceval.lib.phys as symb
-import sympy as sp
-from .focus_gflow_graph import *
-
-# Returns a Perceval Circuit for fusing two photons.
-# If the photons are not neighbors, we have to swap (permutate) the ph2 with the photon next to ph1, do
-# the fusion and swap back.
-def fusion(ph1,ph2):
-    l = abs(ph2-ph1)
-    circ = pcvl.Circuit(m=l+1, name="Fuse " + str(ph1) + "-" + str(ph2))
-    if l > 1:
-        a,*b,c = list(range(0,l))
-        perm=symb.PERM([c,*b,a])
-        circ.add(1,perm)
-    circ.add((0,1), symb.PBS())
-    circ.add(1, symb.HWP(sp.pi / 8)) #TODO remove if we wanna measure in A/D basis
-    if l > 1:
-        circ.add(1,perm)
-    return circ
-
-# Retuns a Perceval Circuit for a Linear cluster with a "name" and the given number of photons
-def linear_cluster(name, photons):
-    circ = symb.Circuit(m=photons, name="LIN " + str(name))
-    for i in range(photons):
-        circ.add(i, symb.HWP(sp.pi / 8))
-
-    for i in range(photons-1):
-        circ.add((i, i + 1), symb.PBS())
-        circ.add(i+1, symb.HWP(sp.pi / 8))
-    circ.add(0, symb.HWP(sp.pi / 8))
-
-
-    return circ
-
-# Retuns a Perceval Circuit for a GHZ cluster with a "name" and the given number of photons
-def ghz_cluster(name, photons):
-    circ = symb.Circuit(m=photons, name="GHZ " + str(name))
-    for i in range(photons):
-        circ.add(i, symb.HWP(sp.pi / 4))
-
-    for i in range(photons-1):
-        circ.add((i, i + 1), symb.PBS())
-
-    for i in range(photons-1):
-        circ.add(i+1, symb.HWP(sp.pi / 8))
-
-    return circ
 
 # makes a ZX-graph "graph-like", such that it only consists of green spiders and hadamards
 def to_graph_like(g):
@@ -60,41 +16,33 @@ def to_graph_like(g):
 # This class is to extract a Perceval Circuit out of a pyzx-graph.
 # The graph is described by a json-string, as defined by the pyzx-library.
 class PercevalExtraction:
-    lin_clusters=[]
-    ghz_clusters=[]
-    lin_clusters_dict={}
-    ghz_clusters_dict={}
-    horizontal_fusions=[]
-    qubit_fusions = []
-    total_photons=0
-    photonic_clusters=[]
-    graph = zx.Graph()
-    ghz_circuits = {}
-    lin_circuits = {}
-    fusion_circuits = {}
-    experiment = None
-    ghz_graphs = {}
-    lin_graphs = {}
 
     def __init__(self, graph_json):
+        self.total_photons=0
+        self.experiment = Experiment()
+        self.pcvl_exp = None
+
         g = zx.Graph.from_json(graph_json)
-        to_graph_like(g)
         g = g.copy()
+        to_graph_like(g)
+        g = self.optimize_graph(g)
+        g.normalize()
+        self.graph=g.copy()
+
+    def optimize_graph(self, g):
+        zx.simplify.clifford_simp(g)
+        zx.full_reduce(g)
         zx.simplify.interior_clifford_simp(g)
-        self.graph=g
+        return g
 
     # Extracts Clusters from the ZX Graph
     # In this function, we first extract all possible GHZ Clusters and Linear Clusters afterwards
     # @max_ghz and @max_lin define the maximum size of ghz and lin clusters respectively
-    def extract_clusters_from_graph_ghz_first(self, max_ghz = np.inf, max_lin = np.inf):
+    def extract_clusters_from_graph_ghz_first(self, max_ghz=np.inf, max_lin=np.inf):
         w_graph = self.graph.copy()
         w_graph.remove_vertices(w_graph.inputs() + w_graph.outputs())
         neighbors_list = []
-        lin_clusters = {}
-        ghz_clusters = {}
-        fusions = {}
-        lin_graphs = {}
-        ghz_graphs = {}
+        experiment = Experiment()
 
         # prepare a list sorted by number of neighbors to get the largest GHZ-Clusters first
         for v in w_graph.vertices():
@@ -104,208 +52,97 @@ class PercevalExtraction:
         # Find GHZ-Clusters in the Graph und remove their edges from the Graph
         for (v, l) in sorted(neighbors_list, key=lambda tup: tup[1], reverse=True):
             if v not in w_graph.inputs() and v not in w_graph.outputs() and len(w_graph.neighbors(v)) > 2:
-                ghz_clusters[v] = [v]
+                cluster = [v]
+                outs = [v] if self.graph.neighbors(v) in self.graph.outputs() else []
                 i = 0
                 while len(w_graph.neighbors(v)) > 0 and i < max_ghz:
                     n = list(w_graph.neighbors(v))[0]
                     if n not in w_graph.outputs() and n not in w_graph.inputs():
-                        ghz_clusters[v].append(n)
+                        cluster.append(n)
                         i = i + 1
                     w_graph.remove_edge(w_graph.edge(v, n))
-                self.ghz_graphs[v] = self.extract_subgraph(ghz_clusters[v], head=v)
+                    if any(item in self.graph.neighbors(n) for item in self.graph.outputs()):
+                        outs.append(n)
+                tmp_graph = self.extract_subgraph(cluster)
+                experiment.add_cluster(CircuitType.GHZ, graph=tmp_graph, nodes=cluster, readouts=outs)
+
         # Find Lin-Clusters in the remaining Graph und remove their edges from the Graph.
         while w_graph.num_edges() != 0:
             for v in list(w_graph.vertices()):
                 if len(w_graph.neighbors(v)) == 1:
                     n = v
-                    lin_clusters[v] = [n]
+                    cluster = [n]
+                    outs = [n] if self.graph.neighbors(n) in self.graph.outputs() else []
                     i = 0
                     while len(w_graph.neighbors(n)) > 0 and i < max_lin:
                         n2 = list(w_graph.neighbors(n))[0]
-                        lin_clusters[v].append(n2)
+                        cluster.append(n2)
                         w_graph.remove_edge(w_graph.edge(n, n2))
+                        if any(item in self.graph.neighbors(n2) for item in self.graph.outputs()):
+                            outs.append(n2)
                         n = n2
                         i = i + 1
-                    self.lin_graphs[v] = self.extract_subgraph(lin_clusters[v])
+                    tmp_graph = self.extract_subgraph(cluster)
+
+                    # we consider everything smaller than 4, a GHZ
+                    if len(cluster) == 3:
+                        # in case of 3, we have to restructer the cluster to have the central node on the first position
+                        experiment.add_cluster(CircuitType.GHZ, graph=tmp_graph,
+                                               nodes=[cluster[1],cluster[0], cluster[2]], readouts=outs)
+                    elif len(cluster) == 2:  # we consider everything smaller than 4, a GHZ
+                        experiment.add_cluster(CircuitType.GHZ, graph=tmp_graph,nodes=cluster, readouts=outs)
+                    else:
+                        experiment.add_cluster(CircuitType.LIN, graph=tmp_graph, nodes=cluster, readouts=outs)
+
             # There might be some circles left. if so, extract one single 3-qubit ghz state before continue with linear
             # clusters.
             for v in list(w_graph.vertices()):
                 if len(w_graph.neighbors(v)) == 2:
                     neighbors = list(w_graph.neighbors(v))
-                    ghz_clusters[v] = [v] + neighbors
+                    cluster = [v] + neighbors
+                    outs = []
+                    for n in cluster:
+                        if any(item in self.graph.neighbors(n)  for item in self.graph.outputs()):
+                            outs.append(n)
                     w_graph.remove_edge(w_graph.edge(v, neighbors[0]))
                     w_graph.remove_edge(w_graph.edge(v, neighbors[1]))
-                    i = i + 1
 
-                    self.ghz_graphs[v] = self.extract_subgraph(ghz_clusters[v], head=v)
-                    break;
+                    tmp_graph = self.extract_subgraph(cluster)
+                    experiment.add_cluster(CircuitType.GHZ, graph=tmp_graph, nodes=cluster, readouts=outs)
+                    break
+        experiment.add_fusions()
+        self.experiment = experiment
 
-        # find edges that are connected with two clusters. They have to be "fused"
-        # with the extraction method above, we only have to find GHZ->GHZ and GHZ->Lin, because we cannot have two
-        # linear cluster connected (if there would be, there is a 'small' GHZ in between them)
-        for k, v in ghz_clusters.items():
-            # first look for other GHZ clusters
-            for k2, v2 in ghz_clusters.items():
-                if k == k2:
-                    continue
-                for i in v:
-                    if i in v2:
-                        if i not in fusions.keys():
-                            fusions[i] = []
-                        fusions[i].append(k)
-                        fusions[i].append(k2)
+    # Creates a Perceval Setup for the Experiment
+    def create_setup(self, merge=False):
 
-            # next look for connected linear clusters
-            for k2, v2 in lin_clusters.items():
-                if k == k2:
-                    continue
-                for i in v:
-                    if i in v2:
-                        if i not in fusions.keys():
-                            fusions[i] = []
-                        fusions[i].append(k)
-                        fusions[i].append(k2)
-        for k, v in fusions.items():
-            fusions[k] = list(set(v))
-
-        self.qubit_fusions=fusions
-        self.ghz_clusters_dict=ghz_clusters
-        self.lin_clusters_dict=lin_clusters
-
-    # this method is old and not working at the moment.
-    # The idea here is to only create linear clusters and connect them with
-    # fusions wherever a vertical connection appears.
-    def extract_clusters_from_graph_linears_first(self):
-        g2 = self.graph.copy()
-        fg_graph = build_focused_gflow_graph(g2, focus_gflow(g2, gflow(g2)))
-        i = 0
-        lin_clusters = {}
-        while len(list(fg_graph.edges())) > 0:
-            n = max(fg_graph.vertices())
-            lin_clusters[i] = [n]
-            while n not in fg_graph.inputs() and len(fg_graph.neighbors(n)) > 0:
-                neigh = list(fg_graph.neighbors(n))[0]
-                lin_clusters[i].insert(0, neigh)
-                fg_graph.remove_edge(fg_graph.edge(n, neigh))
-                if len(fg_graph.neighbors(n)) == 0:
-                    fg_graph.remove_vertex(n)
-                n = neigh
-            if len(fg_graph.neighbors(n)) == 0:
-                fg_graph.remove_vertex(n)
-            i = i + 1
-
-        vertical_fusions = []
-        qubit_fusions = []
-        for key in lin_clusters.keys():
-            for node in lin_clusters[key]:
-                for key2 in lin_clusters.keys():
-                    if key2 > key:
-                        for node2 in lin_clusters[key2]:
-                            if g2.connected(node, node2):
-                                vertical_fusions.append([(key, node), (key2, node2)])
-                        if node in lin_clusters[key2]:
-                            qubit_fusions.append([(key, node), (key2, node)])
-
-        self.lin_clusters=lin_clusters
-        self.vertical_fusions=vertical_fusions
-        self.qubit_fusions=qubit_fusions
-
-    #Creates a Perceval Setup for the graph
-    def create_setup(self, merge=False, reorder_before_measurement=True):
-        ghz_circuits = {}
-        lin_circuits = {}
-        fusion_circuits = {}
-        clusters={}
-        # we need as many photons as items in all GHZ+Lin Clusters
-        photons = sum(len(item) for item in self.ghz_clusters_dict.values()) + sum(
-            len(item) for item in self.lin_clusters_dict.values())
-        self.total_photons = photons
-        exp = symb.Circuit(photons, name="CDL Experiment")
-        i = 0
+        self.total_photons = len(self.experiment.photons.items())
+        exp = symb.Circuit(self.total_photons, name="CDL Experiment")
 
         # Create circuits for all the GHZ clusters
-        for k, v in self.ghz_clusters_dict.items():
-            ghz_circuits[k] = ghz_cluster(k, len(v))
-            exp.add(i, ghz_circuits[k], merge)
-            tmp = {}
-            for j in range(len(v)):
-                # "i" is the actual photon number. we need that for the fusion later
-                tmp[v[j]] = i
-                i = i + 1
-            self.ghz_clusters_dict[k]= tmp
-            clusters[k] = tmp
-
-        #Create circuits for all the Lin-Clusters
-        for k, v in self.lin_clusters_dict.items():
-            lin_circuits[k] = linear_cluster(k, len(v))
-            exp.add(i, lin_circuits[k], merge)
-            tmp = {}
-            for j in range(len(v)):
-                # "i" is the actual photon number. we need that for the fusion later
-                tmp[v[j]] = i
-                i = i + 1
-            self.lin_clusters_dict[k] = tmp
-            clusters[k] = tmp
-
-        #create fusion circuits.
-        for k, v in self.qubit_fusions.items():
-            fusion_circuits[k] = {"orig": 0, "whitness": [], "circuits": []}
-            for i in range(len(v) - 1):
-                if i == 0:
-                    fusion_circuits[k]["orig"] = clusters[v[i]][k]
-                fusion_circuits[k]["whitness"].append(clusters[v[i + 1]][k])
-                ph1 = clusters[v[i]][k]
-                ph2 = clusters[v[i + 1]][k]
-                fuse = fusion(ph1, ph2)
-                fusion_circuits[k]["circuits"].append(fuse)
-                i = i + 1
-                exp.add(min(ph1, ph2), fuse, merge)
-
-        self.ghz_circuits = ghz_circuits
-        self.lin_circuits = lin_circuits
-        self.fusion_circuits = fusion_circuits
-
-        if reorder_before_measurement:
-            perm = self.reorder_before_measurement()
-            exp.add(perm, 0)
+        for circ in self.experiment.ghz_circuits.values():
+            exp.add(circ.photons[0].exp_id, circ.circuit, merge)
 
 
-        self.experiment = exp
+        # Create circuits for all the Lin clusters
+        for circ in self.experiment.lin_circuits.values():
+            exp.add(circ.photons[0].exp_id, circ.circuit, merge)
 
-        return exp, clusters
+        exp.add(0, symb.PERM(list(range(self.total_photons))))
+        # Create circuits for all the Fusions
+        for circ in self.experiment.fusion_circuits.values():
+            exp.add(circ.photons[0].exp_id, circ.circuit, merge)
 
-    def reorder_before_measurement(self):
-        perm = list(range(0, self.total_photons))
+        exp.add(0,symb.PERM(list(range(self.total_photons)))) ## just a barrier
+        # add the projective measurements
+        for phot in self.experiment.photons.values():
+            if phot.type in (PhotonType.COMP, PhotonType.READOUT):
+                exp.add(phot.exp_id, symb.QWP(phot.angle[0]))
+                exp.add(phot.exp_id, symb.HWP(phot.angle[1]))
 
-        i = self.total_photons-1
-        # put all fusions whitnesses to the bottom of the circuit
-        for ver in self.fusion_circuits.keys():
-            for w in self.get_whitnesses(ver):
-                perm[w] = i
-                self.update_whitnesses(ver, w, i)
-                self.update_photon(w,i)
-                perm[i] = w
-                self.update_photon(i, w)
-                i = i - 1
+        self.pcvl_exp = exp
 
-        # put all outputs aka readouts at the top of the circuit
-        i = 0
-        for outs in map (lambda o: list(self.graph.neighbors(o))[0], list(self.graph.outputs())):
-            if outs in self.fusion_circuits.keys():
-                orig = self.update_origin(outs, i)
-                perm[i] = orig
-                self.update_photon(orig, i)
-                perm[orig] = i
-                self.update_photon(i, orig)
-            else:
-                ph = self.get_photon_for_node(outs)
-                perm[i] = ph
-                self.update_photon(ph, i)
-                perm[ph] = i
-                self.update_photon(i, ph)
-            i = i + 1
-        print(perm)
-        return symb.PERM(perm)
+        return exp
 
     def extract_subgraph(self, cluster_list, head=-1):
         # if it has a head, it's a ghz state
@@ -319,44 +156,60 @@ class PercevalExtraction:
         tmp_graph.remove_vertices([i for i in list(tmp_graph.vertices()) if i not in cluster_list])
         return tmp_graph
 
-    def get_whitnesses(self, node_id):
-        return self.fusion_circuits[node_id]["whitness"]
 
+    # create the input state. for each photon of the original circuit, the input state is defined by the "Photon"
+    # object (typically |{P:H}>. For the ancillary ones for measurement the input is "|0>"
+    def input_states(self):
+        in_state = "|"
+        in_state = in_state + ",".join([f'{ph.in_state}' for ph in self.experiment.photons.values()])
+        in_state = in_state + "," + ",".join([f'{item}' for item in [0] * self.total_photons])
+        in_state = in_state + ">"
 
-    def update_whitnesses(self, node_id, old, new):
-        for i in range(len(self.fusion_circuits[node_id]["whitness"])):
-            if self.fusion_circuits[node_id]["whitness"][i] == old:
-                self.fusion_circuits[node_id]["whitness"][i] = new
-                return
+        return [pcvl.BasicState(in_state)]
 
-    def update_origin(self, node_id, new):
-        old = self.fusion_circuits[node_id]["orig"]
-        self.fusion_circuits[node_id]["orig"] = new
-        return old
-
-    def update_photon(self, old, new):
-        for k,v in self.ghz_clusters_dict.items():
-            for k2,v2 in v.items():
-                if v2 == old:
-                    v[k2] = new
-                    return
-
-        for k,v in self.lin_clusters_dict.items():
-            for k2,v2 in v.items():
-                if v2 == old:
-                    v[k2] = new
-
-    def get_photon_for_node(self, node_id):
-        if node_id in self.fusion_circuits.keys():
-            return self.fusion_circuits[node_id]["orig"]
-        for k,v in self.ghz_clusters_dict.keys():
-            if node_id in v.keys():
-                return v[node_id]
-        for k, v in self.lin_clusters_dict.keys():
-            if node_id in v.keys():
-                return v[node_id]
+    # Create the output states.
+    # For each WITNESS photon, the output is fixed to "|{P:H}>" and translated
+    # to |0,0> (as we have to measure two photons).
+    # For Computings Photons, the output is fixed to |P:V>, aka |1,0>
+    # For the READOUTS, the output can be either "|{P:H}>" or "|{P:V}>
+    def output_states(self):
+        (readouts, witnesses, comps) = (self.experiment.get_readouts(), self.experiment.get_witnesses(),
+                                        self.experiment.get_computes())
+        out_states = {}
+        x = 0
+        (zero, one) = ([0, 1], [1, 0])
+        for st in itertools.product([zero, one], repeat=len(readouts)):
+            basic_out_state = [[]] * self.total_photons
+            for w in witnesses:
+                basic_out_state[w.exp_id] = zero
+            for c in comps:
+                basic_out_state[c.exp_id] = zero
+            for i in range(len(readouts)):
+                basic_out_state[readouts[i].exp_id] = st[i]
+            out_states[
+                pcvl.BasicState(list(itertools.chain.from_iterable(basic_out_state)))] = f'|{x:0{len(readouts)}b}>'
+            x = x + 1
+        return out_states
 
     def run(self):
-        if self.experiment is None:
+        if self.pcvl_exp is None or self.experiment is None:
             print("No experiment ot run")
+            return
+
+        # We have to increase the size by 2, as Perceval currently does not support measurement in polarization
+        # hence, we add a second rail for each photon and a PBS before measurement
+        # we add the rails at the end of the circuit and permutate them upwards just before the measurement,
+        # e.g. in case of 10 photons, photon 10 will be the helper for photon 0; photon 11 for 1 and so on
+        phs = self.total_photons
+        exp = symb.Circuit(phs*2, name="CDL Experiment")
+        exp.add(0,self.pcvl_exp)
+        exp.add(0,symb.PERM(sum(list([2*i] for i in range(0,phs)) + list([2*i+1] for i in range(0,phs)), [])))
+        for i in range(0,phs):
+            exp.add(i*2, symb.PBS())
+
+        sim = pcvl.Processor("Naive", exp)
+        ca = pcvl.algorithm.Analyzer(sim,input_states=self.input_states(),output_states=self.output_states())
+        return ca, exp
+
+
 
