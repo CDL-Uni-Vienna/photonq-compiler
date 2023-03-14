@@ -89,8 +89,10 @@ class Loop(object):
         return self.out_states
 
 
-    def calc_in_and_out_states_with_losses(self,in_state, indistinguishability):
-        self.calculate_input_state_with_losses(in_state,indistinguishability)
+    def calc_in_and_out_states_with_losses(self,in_state=[], indistinguishability=0):
+        if in_state == [] or in_state == None:
+            in_state = [x for x in pcvl.BasicState(self.in_state)][:self.width]
+        self.calculate_input_state_with_losses(in_state, indistinguishability)
         self.calc_out_states()
 
     def calculate_no_wires(self, width, depth):
@@ -188,7 +190,10 @@ class Loop(object):
 
 
 
-    def run(self,in_state, processes = 1, chunks = 1, backend="Naive", indistinguishability=1, t_sleep=10):
+    def run(self,in_state = [], processes = 1, chunks = 1, backend="Naive", indistinguishability=1, t_sleep=10):
+
+        assert self.in_state != None or self.in_state != [] or in_state != None or in_state != [], "In State is required"
+
         self.calc_in_and_out_states_with_losses(in_state, indistinguishability)
         dist = {i:0 for i in self.out_states.values()}
         if processes > 1:
